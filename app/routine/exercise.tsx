@@ -1,0 +1,1 @@
+export { ExerciseEditScreen as default } from '@/screens/routine/ExerciseEditScreen';

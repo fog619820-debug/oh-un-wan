@@ -1,0 +1,1 @@
+export { ChatScreen as default } from '@/screens/ai-consultant/ChatScreen';
