@@ -1,0 +1,1 @@
+export { RoutineEditScreen as default } from '@/screens/routine/RoutineEditScreen';

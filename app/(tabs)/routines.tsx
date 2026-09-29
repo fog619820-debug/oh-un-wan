@@ -1,0 +1,1 @@
+export { RoutineListScreen as default } from '@/screens/routine/RoutineListScreen';
