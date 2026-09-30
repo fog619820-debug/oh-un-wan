@@ -11,7 +11,9 @@ import {
   RotateCcw, 
   Plus, 
   Calendar as CalendarIcon, 
-  Trophy
+  Trophy,
+  Trash2,
+  Pencil
 } from "lucide-react";
 
 type WorkoutSet = {
@@ -24,6 +26,7 @@ type WorkoutSet = {
 type Exercise = {
   id: number;
   name: string;
+  restSeconds: number;
   sets: WorkoutSet[];
 };
 
@@ -38,6 +41,7 @@ export default function VibeFitPage() {
       {
         id: 1,
         name: "벤치프레스",
+        restSeconds: 90,
         sets: [
           { id: 1, weight: 60, reps: 10, completed: false },
           { id: 2, weight: 60, reps: 10, completed: false },
@@ -47,6 +51,7 @@ export default function VibeFitPage() {
       {
         id: 2,
         name: "인클라인 덤벨 프레스",
+        restSeconds: 60,
         sets: [
           { id: 1, weight: 20, reps: 12, completed: false },
           { id: 2, weight: 20, reps: 12, completed: false },
@@ -57,6 +62,7 @@ export default function VibeFitPage() {
       {
         id: 3,
         name: "데드리프트",
+        restSeconds: 120,
         sets: [
           { id: 1, weight: 100, reps: 5, completed: false },
           { id: 2, weight: 110, reps: 5, completed: false },
@@ -70,6 +76,12 @@ export default function VibeFitPage() {
   const [timerActive, setTimerActive] = useState(false);
   const [stamps, setStamps] = useState<string[]>(["2026-09-28"]);
   const [newExerciseName, setNewExerciseName] = useState("");
+  const [newExerciseWeight, setNewExerciseWeight] = useState("20");
+  const [newExerciseReps, setNewExerciseReps] = useState("10");
+  const [newExerciseSetCount, setNewExerciseSetCount] = useState("1");
+  const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState("60");
+  const [isAddingExercise, setIsAddingExercise] = useState(false);
+  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -92,7 +104,7 @@ export default function VibeFitPage() {
             if (s.id === setId) {
               const nextState = !s.completed;
               if (nextState) {
-                setRestTime(60);
+                setRestTime(ex.restSeconds);
                 setTimerActive(true);
               }
               return { ...s, completed: nextState };
@@ -108,17 +120,82 @@ export default function VibeFitPage() {
   };
 
   const addExercise = () => {
-    if (!newExerciseName.trim()) return;
+    const weight = Number(newExerciseWeight);
+    const reps = Number(newExerciseReps);
+    const setCount = Number(newExerciseSetCount);
+    const restSeconds = Number(newExerciseRestSeconds);
+    if (!newExerciseName.trim() || !Number.isFinite(weight) || !Number.isFinite(reps) || !Number.isInteger(setCount) || !Number.isFinite(restSeconds) || reps <= 0 || setCount <= 0 || restSeconds < 0) return;
     const newEx: Exercise = {
       id: Date.now(),
-      name: newExerciseName,
-      sets: [{ id: 1, weight: 20, reps: 10, completed: false }],
+      name: newExerciseName.trim(),
+      restSeconds,
+      sets: Array.from({ length: setCount }, (_, index) => ({
+        id: index + 1,
+        weight,
+        reps,
+        completed: false,
+      })),
     };
     setRoutines((prev) => ({
       ...prev,
       [selectedDay]: [...(prev[selectedDay] || []), newEx],
     }));
     setNewExerciseName("");
+    setNewExerciseWeight("20");
+    setNewExerciseReps("10");
+    setNewExerciseSetCount("1");
+    setNewExerciseRestSeconds("60");
+    setIsAddingExercise(false);
+  };
+
+  const removeExercise = (day: string, exerciseId: number) => {
+    setRoutines((prev) => ({
+      ...prev,
+      [day]: (prev[day] || []).filter((exercise) => exercise.id !== exerciseId),
+    }));
+  };
+
+  const startEditingExercise = (exercise: Exercise) => {
+    const firstSet = exercise.sets[0];
+    setNewExerciseName(exercise.name);
+    setNewExerciseWeight(String(firstSet?.weight ?? 0));
+    setNewExerciseReps(String(firstSet?.reps ?? 1));
+    setNewExerciseSetCount(String(exercise.sets.length));
+    setNewExerciseRestSeconds(String(exercise.restSeconds));
+    setEditingExerciseId(exercise.id);
+    setIsAddingExercise(false);
+  };
+
+  const saveExerciseEdit = () => {
+    if (editingExerciseId === null) return;
+    const weight = Number(newExerciseWeight);
+    const reps = Number(newExerciseReps);
+    const setCount = Number(newExerciseSetCount);
+    const restSeconds = Number(newExerciseRestSeconds);
+    if (!newExerciseName.trim() || !Number.isFinite(weight) || !Number.isFinite(reps) || !Number.isInteger(setCount) || !Number.isFinite(restSeconds) || reps <= 0 || setCount <= 0 || restSeconds < 0) return;
+
+    setRoutines((prev) => ({
+      ...prev,
+      [selectedDay]: (prev[selectedDay] || []).map((exercise) => exercise.id === editingExerciseId
+        ? {
+            ...exercise,
+            name: newExerciseName.trim(),
+            restSeconds,
+            sets: Array.from({ length: setCount }, (_, index) => ({
+              id: index + 1,
+              weight,
+              reps,
+              completed: exercise.sets[index]?.completed ?? false,
+            })),
+          }
+        : exercise),
+    }));
+    setEditingExerciseId(null);
+    setNewExerciseName("");
+    setNewExerciseWeight("20");
+    setNewExerciseReps("10");
+    setNewExerciseSetCount("1");
+    setNewExerciseRestSeconds("60");
   };
 
   const getTodayString = () => {
@@ -199,8 +276,26 @@ export default function VibeFitPage() {
             ) : (
               routines[selectedDay].map((exercise) => (
                 <div key={exercise.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
-                  <h3 className="font-bold text-slate-100 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-100 flex items-center justify-between gap-3">
                     <span>{exercise.name}</span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={`${exercise.name} 수정`}
+                        onClick={() => startEditingExercise(exercise)}
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-orange-500/10 hover:text-orange-400"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${exercise.name} 삭제`}
+                        onClick={() => removeExercise(selectedDay, exercise.id)}
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </span>
                   </h3>
                   <div className="space-y-2">
                     {exercise.sets.map((set, idx) => (
@@ -231,21 +326,94 @@ export default function VibeFitPage() {
               ))
             )}
 
-            <div className="flex gap-2 pt-2">
-              <input
-                type="text"
-                placeholder="새 운동명 (예: 스쿼트)"
-                value={newExerciseName}
-                onChange={(e) => setNewExerciseName(e.target.value)}
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500 text-slate-100"
-              />
+            {!isAddingExercise && editingExerciseId === null ? (
               <button
-                onClick={addExercise}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-1 transition"
+                type="button"
+                onClick={() => setIsAddingExercise(true)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition"
               >
                 <Plus className="w-4 h-4" /> 추가
               </button>
-            </div>
+            ) : (
+              <div className="bg-slate-900 border border-orange-500/30 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-100">{editingExerciseId === null ? "새 운동 설정" : "운동 수정"}</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingExercise(false);
+                      setEditingExerciseId(null);
+                    }}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-300"
+                  >
+                    취소
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="운동명 (예: 스쿼트)"
+                  value={newExerciseName}
+                  onChange={(e) => setNewExerciseName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500 text-slate-100"
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <label className="text-xs font-bold text-slate-400">
+                    무게(kg)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      inputMode="decimal"
+                      value={newExerciseWeight}
+                      onChange={(e) => setNewExerciseWeight(e.target.value)}
+                      className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-sm text-slate-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </label>
+                  <label className="text-xs font-bold text-slate-400">
+                    세트 수
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      value={newExerciseSetCount}
+                      onChange={(e) => setNewExerciseSetCount(e.target.value)}
+                      className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-sm text-slate-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </label>
+                  <label className="text-xs font-bold text-slate-400">
+                    개수(회)
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={newExerciseReps}
+                      onChange={(e) => setNewExerciseReps(e.target.value)}
+                      className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-sm text-slate-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </label>
+                  <label className="text-xs font-bold text-slate-400">
+                    시간(초)
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      value={newExerciseRestSeconds}
+                      onChange={(e) => setNewExerciseRestSeconds(e.target.value)}
+                      className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-sm text-slate-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={editingExerciseId === null ? addExercise : saveExerciseEdit}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-xl font-bold text-sm transition"
+                >
+                  {editingExerciseId === null ? "운동 추가하기" : "수정 저장"}
+                </button>
+              </div>
+            )}
           </div>
 
           <button
