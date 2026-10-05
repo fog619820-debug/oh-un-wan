@@ -4,7 +4,7 @@ import type { Routine } from '@/domain/models/routine';
 import type { WorkoutRecord } from '@/domain/models/workoutRecord';
 import { SqliteRecordRepository } from '@/data/repositories/sqliteRecordRepository';
 import { SqliteRoutineRepository } from '@/data/repositories/sqliteRoutineRepository';
-import { getMonthBounds, toDateKey } from '@/utils/date';
+import { getMondayFirstWeekdayIndex, getMonthBounds, toDateKey } from '@/utils/date';
 
 export interface DayRoutineSummary {
   routine: Routine;
@@ -25,7 +25,7 @@ export function useCalendarViewModel() {
   }, [database, month]);
 
   useEffect(() => {
-    const weekday = new Date(`${selectedDate}T12:00:00`).getDay();
+    const weekday = getMondayFirstWeekdayIndex(new Date(`${selectedDate}T12:00:00`));
     void Promise.all([
       new SqliteRoutineRepository(database).getAll(),
       new SqliteRecordRepository(database).getRecordsForDate(selectedDate),

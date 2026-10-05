@@ -8,7 +8,7 @@ import { SqliteRecordRepository } from '@/data/repositories/sqliteRecordReposito
 import { SqliteRoutineRepository } from '@/data/repositories/sqliteRoutineRepository';
 import { notifyWorkoutComplete } from '@/services/notification';
 import { useRestTimerStore } from '@/stores/restTimerStore';
-import { toDateKey } from '@/utils/date';
+import { getMondayFirstWeekdayIndex, toDateKey } from '@/utils/date';
 
 export interface TodayRoutine {
   routine: Routine;
@@ -28,7 +28,7 @@ export function useTodayViewModel() {
     try {
       const routineRepository = new SqliteRoutineRepository(database);
       const recordRepository = new SqliteRecordRepository(database);
-      const weekday = new Date().getDay();
+      const weekday = getMondayFirstWeekdayIndex(new Date());
       const scheduled = (await routineRepository.getAll()).filter((routine) => routine.weekdays.includes(weekday));
       const sessions = await Promise.all(scheduled.map(async (routine) => {
         const exercises = await routineRepository.getExercises(routine.id);
